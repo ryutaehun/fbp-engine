@@ -1,6 +1,8 @@
 package com.fbp.engine.node;
 
 import com.fbp.engine.core.Connection;
+import com.fbp.engine.message.Message;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,41 +16,61 @@ public class GeneratorNodeTest {
 
     @BeforeEach
     public void setup() {
-        gen = new GeneratorNode("gen");
-        outConn = new Connection();
-
+        gen = new GeneratorNode("gen", 5);
+        outConn = new Connection(10);
         gen.getOutputPort("out").connect(outConn);
     }
 
-    @DisplayName("generate 메시지 생성")
+    @DisplayName("스레드 실행 후 메시지 생성 확인")
     @Test
-    void one() {
-        gen.generate("key", "value");
+    void one() throws InterruptedException {
+        Thread thread = new Thread(gen);
+        thread.start();
 
-        assertEquals(1, outConn.getBufferSize());
+        Message msg = outConn.poll();
+
+        assertNotNull(msg);
+        assertEquals(0, (Integer) msg.get("count"));
+        assertEquals("data-0", msg.get("value"));
+
+        thread.interrupt();
     }
 
-    @DisplayName("메시지 내용 확인")
+    @DisplayName("지정된 개수만큼 메시지 생성 확인")
     @Test
-    void two() {
-        gen.generate("key", "value");
+    void two() throws InterruptedException {
+        Thread thread = new Thread(gen);
+        thread.start();
 
-        assertEquals("value", outConn.poll().get("key"));
+        for (int i = 0; i < 5; i++) {
+            Message msg = outConn.poll();
+            assertNotNull(msg);
+            assertEquals(i, (Integer) msg.get("count"));
+        }
+
+        Thread.sleep(100);
+        assertEquals(0, outConn.getBufferSize());
+
+        thread.interrupt();
     }
 
-    @DisplayName("OutputPort 조회")
+    @DisplayName("중간에 정지(shutdown) 시 생성 중단 확인")
     @Test
-    void three() {
-        assertNotNull(gen.getOutputPort("out"));
-    }
+    void three() throws InterruptedException {
+        GeneratorNode longGen = new GeneratorNode("long-gen", 100);
+        longGen.getOutputPort("out").connect(outConn);
 
-    @DisplayName("다수 generate 호출")
-    @Test
-    void four() {
-        gen.generate("key", "value1");
-        gen.generate("key", "value2");
-        gen.generate("key", "value3");
+        Thread thread = new Thread(longGen);
+        thread.start();
 
-        assertEquals(3, outConn.getBufferSize());
+        Thread.sleep(50);
+
+        longGen.shutdown();
+        thread.interrupt();
+
+        int countAtStop = outConn.getBufferSize();
+
+        Thread.sleep(200);
+        assertEquals(countAtStop, outConn.getBufferSize());
     }
 }

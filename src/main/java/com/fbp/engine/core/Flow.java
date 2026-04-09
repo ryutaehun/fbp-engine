@@ -8,13 +8,22 @@ import java.util.List;
 import java.util.Map;
 
 public class Flow {
+    @Getter
     private String id;
+
+    public Flow(String id) {
+        this.id = id;
+    }
+    public enum State { STOPPED, RUNNING }
+
+    @Getter
+    private State state = State.STOPPED;
     @Getter
     private Map<String, AbstractNode> nodes = new HashMap<>();
     @Getter
     private List<Connection> connections = new ArrayList<>();
     private final List<Thread> runningThreads = new ArrayList<>();
-    private enum State { UNVISITED, VISITED, VISITING}
+    private enum NodeState { UNVISITED, VISITED, VISITING}
 
     public Flow addNode(AbstractNode node){
         nodes.put(node.getId(), node);
@@ -51,6 +60,7 @@ public class Flow {
             runningThreads.add(thread);
             thread.start();
         }
+        this.state = State.RUNNING;
     }
 
     public void shutdown(){
@@ -60,6 +70,7 @@ public class Flow {
         for(AbstractNode a : nodes.values()){
             a.shutdown();
         }
+        this.state = State.STOPPED;
     }
 
     public List<String> validate() {
@@ -70,13 +81,13 @@ public class Flow {
         }
 
         if (!nodes.isEmpty()) {
-            Map<String, State> stateMap = new HashMap<>();
+            Map<String, NodeState> stateMap = new HashMap<>();
             for (String nodeId : nodes.keySet()) {
-                stateMap.put(nodeId, State.UNVISITED);
+                stateMap.put(nodeId, NodeState.UNVISITED);
             }
 
             for (String nodeId : nodes.keySet()) {
-                if (stateMap.get(nodeId) == State.UNVISITED) {
+                if (stateMap.get(nodeId) == NodeState.UNVISITED) {
                     if (hasCycle(nodeId, stateMap, errors)) {
                         // 순환이 발견되면 에러 메시지가 hasCycle 내부에서 추가됨
                     }
@@ -87,27 +98,27 @@ public class Flow {
         return errors;
     }
 
-    private boolean hasCycle(String currentId, Map<String, State> stateMap, List<String> errors) {
-        stateMap.put(currentId, State.VISITING);
+    private boolean hasCycle(String currentId, Map<String, NodeState> stateMap, List<String> errors) {
+        stateMap.put(currentId, NodeState.VISITING);
 
         AbstractNode currentNode = nodes.get(currentId);
 
         List<String> neighbors = getNextNodeIds(currentNode);
 
         for (String nextId : neighbors) {
-            State nextState = stateMap.get(nextId);
+            NodeState nextState = stateMap.get(nextId);
 
-            if (nextState == State.VISITING) {
+            if (nextState == NodeState.VISITING) {
                 errors.add("에러: 순환 참조가 탐지되었습니다. (" + currentId + " -> " + nextId + ")");
                 return true;
             }
 
-            if (nextState == State.UNVISITED) {
+            if (nextState == NodeState.UNVISITED) {
                 if (hasCycle(nextId, stateMap, errors)) return true;
             }
         }
 
-        stateMap.put(currentId, State.VISITED);
+        stateMap.put(currentId, NodeState.VISITED);
         return false;
     }
 

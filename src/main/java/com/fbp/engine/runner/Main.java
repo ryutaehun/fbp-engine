@@ -1,29 +1,33 @@
 package com.fbp.engine.runner;
 
 import com.fbp.engine.core.Flow;
+import com.fbp.engine.core.FlowEngine;
 import com.fbp.engine.node.*;
 
 public class Main {
     public static void main(String[] args) {
-        Flow flow = new Flow();
+        FlowEngine flowEngine = new FlowEngine();
+        Flow flow = new Flow("flow");
+        flow.addNode(new TimerNode("timer", 1000))
+                .addNode(new TemperatureSensorNode("temperature", 15, 45))
+                .addNode(new ThresholdFilterNode("filter", "temperature", 30))
+                .addNode(new AlertNode("alert"))
+                .addNode(new LogNode("log"));
 
-        flow.addNode(new TimerNode("타이머", 1000))
-                .addNode(new CounterNode("카운터"))
-                .addNode(new FilterNode("필터", "tick", 3))
-                .addNode(new PrintNode("프린트"));
+        flow.connect("timer", "out", "temperature", "trigger")
+                .connect("temperature", "out", "filter", "in")
+                .connect("filter", "alert", "alert", "in")
+                .connect("filter", "normal", "log", "in");
 
-        flow.connect("타이머", "out", "카운터", "in")
-                .connect("카운터", "out", "필터", "in")
-                .connect("필터", "out", "프린트", "in");
+        flowEngine.register(flow);
+        flowEngine.startFlow("flow");
 
-        flow.initialize();
-
-        try{
-            Thread.sleep(5000);
+        try {
+            Thread.sleep(10000);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
 
-        flow.shutdown();
+        flowEngine.stopFlow("flow");
     }
 }

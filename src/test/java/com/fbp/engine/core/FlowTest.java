@@ -16,7 +16,7 @@ class FlowTest {
 
     @BeforeEach
     void setUp() {
-        flow = new Flow();
+        flow = new Flow("flow");
     }
 
     @Test

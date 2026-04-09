@@ -22,19 +22,6 @@ public class TimerNode extends AbstractNode {
     }
 
     @Override
-    public void initialize(){
-        scheduler = new ScheduledThreadPoolExecutor(1);
-        scheduler.scheduleAtFixedRate(() -> {
-            Map<String,Object> payload = new HashMap<>();
-            payload.put("tick", tickCount++);
-            payload.put("timestamp", System.currentTimeMillis());
-
-            Message msg = new Message(payload);
-            send("out", msg);
-        }, 0, intervalMs, TimeUnit.MILLISECONDS);
-    }
-
-    @Override
     public void shutdown(){
         if (scheduler != null) {
             scheduler.shutdownNow();
@@ -55,8 +42,6 @@ public class TimerNode extends AbstractNode {
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-        } finally {
-            shutdown();
         }
     }
 

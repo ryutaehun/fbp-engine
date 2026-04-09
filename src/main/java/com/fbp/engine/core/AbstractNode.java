@@ -52,21 +52,17 @@ public abstract class AbstractNode implements Node, Runnable {
     public void run() {
         try {
             while (!Thread.currentThread().isInterrupted()) {
-                InputPort inputPort = getInputPort("in");
-                if (inputPort == null) break;
-
-                Message message = inputPort.receive();
-
-                if (message != null) {
-                    process(message);
+                for (InputPort port : inputPorts.values()) {
+                    Message message = port.receive();
+                    if (message != null) {
+                        process(message);
+                    }
                 }
             }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
             System.err.println(getId() + " error: " + e.getMessage());
-        } finally {
-            shutdown();
         }
     }
 }
